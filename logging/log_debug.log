@@ -1,0 +1,6 @@
+2025-06-28T19:19:59.035848+0300| DEBUG | Запрос в бд с параметрами: yellow, 2025-06-27 - 97 | __main__
+2025-06-28T19:19:59.159029+0300| DEBUG | Запрос выполнен успешно. Данные которые получил пользователь - [] - 100 | __main__
+2025-06-28T19:20:49.856005+0300| DEBUG | Запрос в бд с параметрами: yellow, 2025-06-27 - 97 | __main__
+2025-06-28T19:20:49.936223+0300| DEBUG | Запрос выполнен успешно. Данные которые получил пользователь - [] - 100 | __main__
+2025-06-28T19:25:56.467702+0300| DEBUG | Запрос в бд с параметрами: yellow, 2025-06-26 - 97 | __main__
+2025-06-28T19:25:56.547644+0300| DEBUG | Запрос выполнен успешно. Данные которые получил пользователь - [(<Article(id=16, category=yellow, title=Asics Trail Scout 3 Midnight / Wheat Yellow)>,), (<Article(id=17, category=yellow, title=This Unrestored 1970 Shelby GT500 In Grabber Yellow Has Carroll Shelby’s Actual Signature)>,), (<Article(id=18, category=yellow, title=Win Metawin Sports Yellow Sneakers, the Next Big Shoe Trend of 2025)>,)] - 100 | __main__
