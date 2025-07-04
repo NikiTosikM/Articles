@@ -1,4 +1,4 @@
-from loguru  import logger
+from loguru import logger
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
@@ -20,15 +20,13 @@ logger.add(
 
 class BaseConfig(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
     api_key: str = Field(..., alias="API_KEY")
-    
+
 
 class PostgreConfig(BaseConfig):
-    model_config = SettingsConfigDict(env_prefix='DB_', extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="DB_", extra="ignore")
     host: str
     port: int
     username: str
@@ -42,6 +40,13 @@ class UvicornConfig(BaseConfig):
     host: str
 
 
+class RedisConfig(BaseConfig):
+    model_config = SettingsConfigDict(env_prefix="RD_", extra="ignore")
+    host: str
+    port: int
+    
+
+
 postg_config = PostgreConfig()
 uvicorn_config = UvicornConfig()
-
+redis_config = RedisConfig()
