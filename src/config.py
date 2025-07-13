@@ -46,7 +46,7 @@ class RedisConfig(BaseConfig):
     port: int
     
 
-
+base_config = BaseConfig()
 postg_config = PostgreConfig()
 uvicorn_config = UvicornConfig()
 redis_config = RedisConfig()

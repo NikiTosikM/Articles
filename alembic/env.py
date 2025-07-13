@@ -17,7 +17,7 @@ from src.articles.models import *  # noqa: F403
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-        f"postgresql+asyncpg://{post_conf.username}:{post_conf.password}@{post_conf.host}/{post_conf.name}"
+        f"postgresql://{post_conf.username}:{post_conf.password}@{post_conf.host}/{post_conf.name}"
 )
 
 # Interpret the config file for Python logging.
