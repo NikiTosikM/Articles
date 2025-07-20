@@ -30,6 +30,6 @@ archive.zip
 .DS_Store
 
 #logging.log
-logging.log
+logging/log_*.log
 
 alembic/versions

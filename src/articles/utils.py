@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta, date
 
 
-def date_format():
+def date_format() -> str:
     date_: date = datetime.now() - timedelta(days=1)
     date_str_format = date_.strftime("%Y-%m-%d")
 
     return date_str_format
 
 
-def datetime_format(date_):
+def datetime_format(date_) -> datetime:
     date_published: datetime = datetime.strptime(date_, "%Y-%m-%dT%H:%M:%SZ")
 
     return date_published

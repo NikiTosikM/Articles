@@ -7,7 +7,7 @@ from sqlalchemy.exc import DatabaseError
 from loguru import logger
 from redis.asyncio import Redis, ConnectionPool
 from fastapi.exceptions import HTTPException
-from fastapi import status, Request
+from fastapi import status
 
 from .utils import date_format, decode_keys_and_value
 from ..database import create_session
@@ -66,30 +66,35 @@ class RequestArticle:
 
 
 class PostgresDataManager:
-    async def insert_articles(self, articles) -> None:
+    async def insert_articles(self, articles) -> list[Articles]:
         assert articles is not None
         try:
+            list_articles_objects = []
             category: str = articles.get("category", None)
             async with create_session() as session:
                 for article in articles.get("articles"):
                     published_at = article["publishedAt"]
                     date_publ = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ")
                     try:
-                        session.add(
-                            Articles(
+                        article_model_object = Articles(
                                 category=category,
                                 title=article.get("title"),
                                 description=article.get("description"),
                                 published_at=date_publ,
                                 content=article.get("content"),
                             )
-                        )
-
-                        logger.debug("Данные в бд успешно записаны")
+                        session.add(article_model_object)
+                        if len(list_articles_objects) < 11:
+                            session.flush()
+                            list_articles_objects.append(article_model_object)
+                        logger.debug(f"Данные в бд успешно записаны. ID: {article_model_object.id}")
                     except DatabaseError as error:
                         logger.error(f"Ошибка при работе с БД. {error}")
                 logger.debug("Список данных сформирован")
                 await session.commit()
+                
+                return list_articles_objects
+            
         except KeyError as error:
             logger.error(f"Ошибка при занесесии данных в бд.Отсутствует поле: {error}")
         except Exception as error:
@@ -115,6 +120,7 @@ class PostgresDataManager:
                     f"Запрос выполнен успешно. Данные которые получил пользователь - {articles_responce}"
                 )
                 articles_list: list = articles_responce.scalars().all()
+                
                 return articles_list
         except DatabaseError as error:
             logger.error(f"Ошибка при работе с БД. {error}")
@@ -186,9 +192,7 @@ class RedisDataManager:
         try:
             for article in data:
                 try:
-                    published_at: date = datetime.strftime(
-                        article.published_at, "%Y-%m-%d"
-                    )
+                    published_at: str = datetime.strftime(article.published_at, "%Y-%m-%d")
                     article_desc = article.description if article.description else ""
                     await self.client.hset(
                         f"article:id:{article.id}",
@@ -212,12 +216,13 @@ class RedisDataManager:
                     logger.debug("Данные успешно вставленны в Redis")
                 except (ValueError, KeyError, AttributeError) as error:
                     logger.error(
-                        f"Произошла ошибка связанная с: {type(error).__name__}"
+                        f"Произошла ошибка связанная с: {type(error).__name__}\
+                        Подробнее: {error}"
                     )
                     raise HTTPException(
                         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                        detail="Ошибка при вставке даных в redis",
-                        type=type(error).__name__,
+                        detail=f"Ошибка при вставке даных в redis.\n \
+                        Тип ошибки: {type(error).__name__}",
                     )
         except redis.ConnectionError as error:
             logger.error(f"Redis Server недоступен. {error}")
@@ -232,17 +237,5 @@ class RedisDataManager:
             return {
                 "status": "error",
                 "detail": str(error),
-                "type": type(error).__name__,
             }
 
-
-def get_redis_man(request: Request):
-    return request.app.state.redis_man
-
-
-def get_postgre_man(request: Request):
-    return request.app.state.postgre_man
-
-
-def get_request_man(request: Request):
-    return request.app.state.request_man

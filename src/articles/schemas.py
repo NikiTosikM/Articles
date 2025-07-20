@@ -3,7 +3,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 
-class Categories(str, Enum):
+class Category(str, Enum):
     business = "business"
     entertainment = "entertainment"
     general = "general"
@@ -11,11 +11,14 @@ class Categories(str, Enum):
     science = "science"
     sports = "sports"
     technology = "technology"
+    
+    def __str__(self):
+        return self.value
 
 
 class Article(BaseModel):
     id: int
-    category: Categories
+    category: Category
     title: str = Field(max_length=150)
     description: str | None = Field(max_length=300)
     views: int
