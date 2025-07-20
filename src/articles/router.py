@@ -1,7 +1,5 @@
-from typing import List
-
-from fastapi.templating import Jinja2Templates
 from fastapi import Request, APIRouter, Depends
+from fastapi.templating import Jinja2Templates
 
 from .models import Articles
 from .service import (
@@ -20,6 +18,7 @@ article_router = APIRouter(tags=["articles"], prefix="/articles")
 templates = Jinja2Templates(directory="templates/")
 
 
+
 @article_router.get("/all")
 async def display_all_articles(
     request: Request, redis_man: RedisDataManager = Depends(get_redis_man)
@@ -28,7 +27,7 @@ async def display_all_articles(
 
 
 @article_router.get("/{category}")
-async def display_all_articles(  # noqa: F811
+async def display_specific_category (  # noqa: F811
     request: Request,
     category: Category,
     redis_man: RedisDataManager = Depends(get_redis_man),

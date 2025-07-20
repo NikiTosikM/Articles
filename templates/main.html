@@ -3,11 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Articles</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
 </head>
 <body>
-    {% for article in articles %}
-        <p>{{article.title}}</p>
-    {% endfor %}
+    <main>
+        <section class="categories">
+            <ul class="list_categories">
+                <li class="category_element">
+                    <a class="category_link" 
+                    href="{{ url_for('display_specific_category', category='business') }}">
+                        <p class="category_name">
+                            Business
+                        </p>
+                    </a>
+                </li>
+                <li class="category_element">
+                    <a class="category_link" 
+                    href="{{ url_for('display_specific_category', category='general') }}">
+                        <p class="category_name">
+                            General
+                        </p>
+                    </a>
+                </li>
+                <li class="category_element">
+                    <a class="category_link" 
+                    href="{{ url_for('display_specific_category', category='health') }}">
+                        <p class="category_name">
+                            Health
+                        </p>
+                    </a>
+                </li>
+                <li class="category_element">
+                    <a class="category_link" 
+                    href="{{ url_for('display_specific_category', category='science') }}">
+                        <p class="category_name">
+                            Science
+                        </p>
+                    </a>
+                </li>
+                <li class="category_element">
+                    <a class="category_link" 
+                    href="{{ url_for('display_specific_category', category='sports') }}">
+                        <p class="category_name">
+                            Sports
+                        </p>
+                    </a>
+                </li>
+                <li class="category_element">
+                    <a class="category_link" 
+                    href="{{ url_for('display_specific_category', category='technology') }}">
+                        <p class="category_name">
+                            Technology
+                        </p>
+                    </a>
+                </li>
+            </ul>
+        </section>
+        <section class="articles_info">
+            {% for article in articles %}
+                <p>{{article.title}}</p>
+            {% endfor %}
+        </section>
+    </main>
 </body>
 </html>
