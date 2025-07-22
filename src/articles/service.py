@@ -2,12 +2,13 @@ from datetime import datetime, date
 
 import aiohttp
 import redis
+from redis.asyncio import Redis, ConnectionPool
 from sqlalchemy import select, and_, cast, Date, Result
 from sqlalchemy.exc import DatabaseError
 from loguru import logger
-from redis.asyncio import Redis, ConnectionPool
 from fastapi.exceptions import HTTPException
 from fastapi import status
+from pydantic import ValidationError
 
 from .utils import date_format, decode_keys_and_value
 from ..database import create_session
@@ -41,11 +42,8 @@ class RequestArticle:
                             status=response.status,
                             message=f"Статус ответа {response.status}",
                         )
-                    data["category"] = category
                     logger.debug("Запрос успешен. Никаких проблем не возникло")
-
-                    return data
-
+                    return data["articles"]
             except aiohttp.client.ClientResponseError as error:
                 logger.error(f"Статус API запроса {error.status}")
                 return {
@@ -66,39 +64,64 @@ class RequestArticle:
 
 
 class PostgresDataManager:
-    async def insert_articles(self, articles) -> list[Articles]:
+    async def insert_articles(self, articles: dict[str, list]) -> list[Articles]:
         assert articles is not None
         try:
             list_articles_objects = []
-            category: str = articles.get("category", None)
             async with create_session() as session:
-                for article in articles.get("articles"):
-                    published_at = article["publishedAt"]
-                    date_publ = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%SZ")
-                    try:
-                        article_model_object = Articles(
+                for category, list_articles in articles.items():
+                    for article in list_articles:
+                        published_at = article["publishedAt"]
+                        date_publ = datetime.strptime(
+                            published_at, "%Y-%m-%dT%H:%M:%SZ"
+                        )
+                        try:
+                            article_model_object = Articles(
                                 category=category,
                                 title=article.get("title"),
                                 description=article.get("description"),
                                 published_at=date_publ,
                                 content=article.get("content"),
                             )
-                        session.add(article_model_object)
-                        if len(list_articles_objects) < 11:
+                            session.add(article_model_object)
                             session.flush()
                             list_articles_objects.append(article_model_object)
-                        logger.debug(f"Данные в бд успешно записаны. ID: {article_model_object.id}")
-                    except DatabaseError as error:
-                        logger.error(f"Ошибка при работе с БД. {error}")
-                logger.debug("Список данных сформирован")
+                            logger.debug(
+                                f"Данные в бд успешно записаны. ID: {article_model_object.id}"
+                            )
+                        except DatabaseError as error:
+                            logger.error(f"Ошибка при работе с БД. {error}")
+                    logger.debug("Список данных сформирован")
                 await session.commit()
-                
                 return list_articles_objects
-            
+
         except KeyError as error:
             logger.error(f"Ошибка при занесесии данных в бд.Отсутствует поле: {error}")
         except Exception as error:
             logger.error(f"Ошибка с БД: {error}")
+
+    async def select_all_articles(self, date_publish: str) -> list[Articles]:
+        try:
+            async with create_session() as session:
+                publish_date = datetime.strptime(date_publish, "%Y-%m-%d").date()
+                query = (
+                    select(Articles)
+                    .where(cast(Articles.published_at, Date) == publish_date)
+                )
+                logger.debug(
+                    f"Запрос для получения всех статей с датой: {date_publish}"
+                )
+                articles_responce: Result = await session.execute(query)
+                logger.debug("Запрос выполнен успешно. Все статьи полученны ")
+                articles_list: list = articles_responce.scalars().all()
+
+                return articles_list
+        except DatabaseError as error:
+            logger.error(f"Ошибка при работе с БД. {error}")
+            return {
+                "status": "error",
+                "description": "Произошла ошибка при работе с БД при получении всех статей",
+            }
 
     async def select_articles(self, category: str, date_publish: str) -> list[Articles]:
         try:
@@ -120,7 +143,7 @@ class PostgresDataManager:
                     f"Запрос выполнен успешно. Данные которые получил пользователь - {articles_responce}"
                 )
                 articles_list: list = articles_responce.scalars().all()
-                
+
                 return articles_list
         except DatabaseError as error:
             logger.error(f"Ошибка при работе с БД. {error}")
@@ -145,6 +168,31 @@ class RedisDataManager:
     async def close(self):
         await self.client.close()
 
+    async def get_all_articles_by_date(self, date_: str) -> list[Articles]:
+        article_list_objects = []
+        try:
+            data_from_redis: set[bytes] = await self.client.smembers(
+                f"article:date:{date_}"
+            )
+            for key in data_from_redis:
+                article_data_bytes: dict[bytes, bytes] = await self.client.hgetall(
+                    key.decode("utf-8")
+                )
+                article_decode: dict = decode_keys_and_value(article_data_bytes)
+                try:
+                    object_schema = Article_schema(**article_decode)
+                except ValidationError as error:
+                    logger.debug(
+                        f"Объект не прошел валидацию.\nПодробнее об ошибке: {error}"
+                    )
+                    raise ValidationError("Объект не прошел валидацию")
+                article_list_objects.append(object_schema)
+
+            return article_list_objects
+        except redis.ConnectionError as error:
+            logger.debug(f"Ошибка при работе с Redis\nПодробнее: {error}")
+            raise ConnectionError("Ошибка при работе с Redis")
+
     async def get_articles_by_date_category(
         self,
         date_: date,
@@ -154,7 +202,7 @@ class RedisDataManager:
             article_ids = await self.client.sinter(
                 f"article:date:{date_}", f"article:category:{category}"
             )
-            article_list: list[Articles] = []
+            article_list = []
             for article_id in article_ids:
                 try:
                     article_data: dict[bytes, bytes] = await self.client.hgetall(
@@ -192,7 +240,9 @@ class RedisDataManager:
         try:
             for article in data:
                 try:
-                    published_at: str = datetime.strftime(article.published_at, "%Y-%m-%d")
+                    published_at: str = datetime.strftime(
+                        article.published_at, "%Y-%m-%d"
+                    )
                     article_desc = article.description if article.description else ""
                     await self.client.hset(
                         f"article:id:{article.id}",
@@ -238,4 +288,3 @@ class RedisDataManager:
                 "status": "error",
                 "detail": str(error),
             }
-

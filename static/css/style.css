@@ -2,16 +2,19 @@ main {
     display: flex;
     min-height: 100vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden; /* Добавлено чтобы избежать двойного скролла */
 }
 
 .categories {
+    position: fixed; /* Фиксированная позиция */
     width: 250px;
+    height: 10vh; /* Высота во весь экран */
     padding: 20px;
     background-color: #f8f9fa;
     border-right: 1px solid #e0e0e0;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     display: flex;
-    align-items: center; 
+    align-items: center;
 }
 
 .list_categories {
@@ -52,6 +55,9 @@ main {
     flex: 1;
     padding: 30px;
     background-color: white;
+    margin-left: 290px; /* Отступ равный ширине категорий + padding */
+    height: 100vh; /* Высота во весь экран */
+    overflow-y: auto; /* Скролл для контента */
 }
 
 /* Дополнительные стили для текста категорий при активном состоянии */
@@ -61,6 +67,6 @@ main {
     border-color: #007bff;
 }
 
-.category_link{
+.category_link {
     text-decoration: none;
 }
