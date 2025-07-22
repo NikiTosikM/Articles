@@ -1,17 +1,24 @@
+body{
+    overflow: hidden;
+}
+
 main {
     display: flex;
-    min-height: 100vh;
+    min-height: 93vh;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .categories {
+    position: fixed; 
     width: 250px;
+    height: 93vh; 
     padding: 20px;
     background-color: #f8f9fa;
     border-right: 1px solid #e0e0e0;
     box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
     display: flex;
-    align-items: center; 
+    align-items: center;
+    overflow-y: auto;
 }
 
 .list_categories {
@@ -47,20 +54,23 @@ main {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Стили для секции с контентом */
+
 .articles_info {
     flex: 1;
     padding: 30px;
     background-color: white;
+    margin-left: 290px; 
+    height: 90vh; 
+    overflow-y: auto;
 }
 
-/* Дополнительные стили для текста категорий при активном состоянии */
+
 .category_element.active .category_name {
     background-color: #007bff;
     color: white;
     border-color: #007bff;
 }
 
-.category_link{
+.category_link {
     text-decoration: none;
 }
