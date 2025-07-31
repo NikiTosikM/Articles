@@ -23,3 +23,10 @@ class Article(BaseModel):
     description: str | None = Field(max_length=300)
     views: int
     published_at: str 
+    
+
+class DisplayOnPageArticle(BaseModel):
+    id: int
+    title: str
+    category: Category
+    views: int

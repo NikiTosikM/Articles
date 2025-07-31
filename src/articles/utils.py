@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 
 
 def date_format() -> str:
-    date_: date = datetime.now() - timedelta(days=1)
+    date_: date = datetime.now(timezone.utc) - timedelta(days=1)
     date_str_format = date_.strftime("%Y-%m-%d")
 
     return date_str_format

@@ -3,8 +3,9 @@ from datetime import datetime, date
 import aiohttp
 import redis
 from redis.asyncio import Redis, ConnectionPool
+from redis.exceptions import ConnectionError,TimeoutError, DataError, ResponseError
 from sqlalchemy import select, and_, cast, Date, Result
-from sqlalchemy.exc import DatabaseError
+from sqlalchemy.exc import DatabaseError, OperationalError, TimeoutError as TimeoutErrorPostgre, NoResultFound, SQLAlchemyError
 from loguru import logger
 from fastapi.exceptions import HTTPException
 from fastapi import status
@@ -64,6 +65,7 @@ class RequestArticle:
 
 
 class PostgresDataManager:
+    
     async def insert_articles(self, articles: dict[str, list]) -> list[Articles]:
         assert articles is not None
         try:
@@ -99,6 +101,20 @@ class PostgresDataManager:
             logger.error(f"Ошибка при занесесии данных в бд.Отсутствует поле: {error}")
         except Exception as error:
             logger.error(f"Ошибка с БД: {error}")
+            
+    async def get_specific_article(self, id_object: int) -> Articles:
+        try:
+            async with create_session() as session:
+                query = select(Articles).where(id=id_object)
+                result_request: Result = await session.execute(query)
+                article_object = result_request.scalars().one()
+                return article_object
+        except (OperationalError, TimeoutErrorPostgre) as conn_error:
+            logger.error(f"Проблема с подклчением к бд.\nПодробнее: {conn_error}")
+            raise SQLAlchemyError()
+        except (DatabaseError, NoResultFound) as req_error:
+            logger.error(f"Ошибка при запроса в бд.\nПодробнее: {req_error}")
+            raise SQLAlchemyError()
 
     async def select_all_articles(self, date_publish: str) -> list[Articles]:
         try:
@@ -167,6 +183,20 @@ class RedisDataManager:
 
     async def close(self):
         await self.client.close()
+        
+    async def get_specific_article(self, id_object: int) -> Articles:
+        try:
+            cached_data_code: dict[bytes, bytes] = await self.client.hgetall(
+                f"article:id:{id_object}"
+            )
+            decode_cached_data: dict[str, str] = decode_keys_and_value(cached_data_code)
+            object_article = Article_schema(**decode_cached_data)
+            logger.debug(f"Получил данные по объекту - {id_object}")
+            return object_article
+        except (ConnectionError, TimeoutError) as conn_error:
+            logger.error(f'Проблемы с подключением к Redis.\nПодробнее: {conn_error}')
+        except (ResponseError, DataError) as req_error:
+            logger.error(f'Ошибка в запросе.\nПодробнее: {req_error}')
 
     async def get_all_articles_by_date(self, date_: str) -> list[Articles]:
         article_list_objects = []
@@ -175,8 +205,8 @@ class RedisDataManager:
                 f"article:date:{date_}"
             )
             for key in data_from_redis:
-                article_data_bytes: dict[bytes, bytes] = await self.client.hgetall(
-                    key.decode("utf-8")
+                article_data_bytes: dict[bytes, bytes] = await self.client.hmget(
+                    key.decode("utf-8"), "id", "title", "category", "views"
                 )
                 article_decode: dict = decode_keys_and_value(article_data_bytes)
                 try:

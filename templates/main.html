@@ -62,7 +62,9 @@
         </section>
         <section class="articles_info">
             {% for article in articles %}
-                <p>{{article.title}}</p>
+                <a href="{{ url_for('detail_desc_article', id_article=article.id) }}">
+                    <p>{{article.title}}</p>
+                </a>
             {% endfor %}
         </section>
     </main>
