@@ -10,7 +10,7 @@ url_connect_db = ("postgresql+asyncpg://"
                 f"{post_conf.username}:{post_conf.password}"
                 f"@{post_conf.host}/{post_conf.name}"
             )
-engine = create_async_engine(url_connect_db, echo=True)
+engine = create_async_engine(url_connect_db)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession ,expire_on_commit=False)
 

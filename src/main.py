@@ -36,6 +36,6 @@ app.include_router(article_router)
 if __name__ == "__main__":
     logger.info("Сервер запущен")
     uvicorn.run(
-        "src.main:app", port=uvicorn_config.port, host=uvicorn_config.host, reload=True
+        "src.main:app", port=uvicorn_config.port, host=uvicorn_config.host
     )
     logger.info("Сервер остановлен")

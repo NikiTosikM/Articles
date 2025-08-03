@@ -15,9 +15,12 @@ def datetime_format(date_) -> datetime:
 
 
 def decode_keys_and_value(article: dict[bytes, bytes]) -> dict[str, str]:
-    result_decode = {
-       k.decode("utf-8"): v.decode("utf-8")
-        for k, v in article.items()
-    }
-    
+    result_decode = {key.decode("utf-8"): value.decode("utf-8") for key, value in article.items()}
+
     return result_decode
+
+def decode_info(info: list[bytes]) -> dict[str, str]:
+    fields = ["id", "title", "category", "views"]
+    decode_data = {field: info[i].decode("utf-8") for i, field in enumerate(fields)}
+    
+    return decode_data

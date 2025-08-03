@@ -3,19 +3,31 @@ from datetime import datetime, date
 import aiohttp
 import redis
 from redis.asyncio import Redis, ConnectionPool
-from redis.exceptions import ConnectionError,TimeoutError, DataError, ResponseError
+from redis.exceptions import (
+    ConnectionError,
+    TimeoutError,
+    DataError,
+    ResponseError,
+    RedisError,
+)
 from sqlalchemy import select, and_, cast, Date, Result
-from sqlalchemy.exc import DatabaseError, OperationalError, TimeoutError as TimeoutErrorPostgre, NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import (
+    DatabaseError,
+    OperationalError,
+    TimeoutError as TimeoutErrorPostgre,
+    NoResultFound,
+    SQLAlchemyError,
+)
 from loguru import logger
 from fastapi.exceptions import HTTPException
 from fastapi import status
 from pydantic import ValidationError
 
-from .utils import date_format, decode_keys_and_value
+from .utils import date_format, decode_keys_and_value, decode_info
 from ..database import create_session
 from .models import Articles
 from ..config import redis_config
-from .schemas import Article as Article_schema
+from .schemas import Article as Article_schema, DisplayOnPageArticle
 
 
 class RequestArticle:
@@ -65,7 +77,6 @@ class RequestArticle:
 
 
 class PostgresDataManager:
-    
     async def insert_articles(self, articles: dict[str, list]) -> list[Articles]:
         assert articles is not None
         try:
@@ -101,7 +112,7 @@ class PostgresDataManager:
             logger.error(f"Ошибка при занесесии данных в бд.Отсутствует поле: {error}")
         except Exception as error:
             logger.error(f"Ошибка с БД: {error}")
-            
+
     async def get_specific_article(self, id_object: int) -> Articles:
         try:
             async with create_session() as session:
@@ -120,9 +131,8 @@ class PostgresDataManager:
         try:
             async with create_session() as session:
                 publish_date = datetime.strptime(date_publish, "%Y-%m-%d").date()
-                query = (
-                    select(Articles)
-                    .where(cast(Articles.published_at, Date) == publish_date)
+                query = select(Articles).where(
+                    cast(Articles.published_at, Date) == publish_date
                 )
                 logger.debug(
                     f"Запрос для получения всех статей с датой: {date_publish}"
@@ -173,7 +183,7 @@ class PostgresDataManager:
 class RedisDataManager:
     host = redis_config.host
     port = redis_config.port
-    max_connection = 10
+    max_connection = 50
 
     def __init__(self):
         self.pool = ConnectionPool(
@@ -183,7 +193,7 @@ class RedisDataManager:
 
     async def close(self):
         await self.client.close()
-        
+
     async def get_specific_article(self, id_object: int) -> Articles:
         try:
             cached_data_code: dict[bytes, bytes] = await self.client.hgetall(
@@ -194,31 +204,35 @@ class RedisDataManager:
             logger.debug(f"Получил данные по объекту - {id_object}")
             return object_article
         except (ConnectionError, TimeoutError) as conn_error:
-            logger.error(f'Проблемы с подключением к Redis.\nПодробнее: {conn_error}')
+            logger.error(f"Проблемы с подключением к Redis.\nПодробнее: {conn_error}")
         except (ResponseError, DataError) as req_error:
-            logger.error(f'Ошибка в запросе.\nПодробнее: {req_error}')
+            logger.error(f"Ошибка в запросе.\nПодробнее: {req_error}")
 
-    async def get_all_articles_by_date(self, date_: str) -> list[Articles]:
-        article_list_objects = []
+    async def get_all_articles_by_date(self, date_: str) -> list[DisplayOnPageArticle]:
         try:
             data_from_redis: set[bytes] = await self.client.smembers(
                 f"article:date:{date_}"
             )
+            pipline_all_articles = self.client.pipeline()
             for key in data_from_redis:
-                article_data_bytes: dict[bytes, bytes] = await self.client.hmget(
+                pipline_all_articles.hmget(
                     key.decode("utf-8"), "id", "title", "category", "views"
                 )
-                article_decode: dict = decode_keys_and_value(article_data_bytes)
-                try:
-                    object_schema = Article_schema(**article_decode)
-                except ValidationError as error:
-                    logger.debug(
-                        f"Объект не прошел валидацию.\nПодробнее об ошибке: {error}"
-                    )
-                    raise ValidationError("Объект не прошел валидацию")
-                article_list_objects.append(object_schema)
+            cached_data: list[list[bytes]] = await pipline_all_articles.execute()
 
-            return article_list_objects
+            articles_decode: list[dict[str, str]] = [
+                decode_info(article_data_bytes) for article_data_bytes in cached_data
+            ]
+            try:
+                return [
+                    DisplayOnPageArticle(**article_data)
+                    for article_data in articles_decode
+                ]
+            except ValidationError as error:
+                logger.debug(
+                    f"Объект не прошел валидацию.\nПодробнее об ошибке: {error}"
+                )
+                raise ValidationError("Объект не прошел валидацию")
         except redis.ConnectionError as error:
             logger.debug(f"Ошибка при работе с Redis\nПодробнее: {error}")
             raise ConnectionError("Ошибка при работе с Redis")
@@ -227,25 +241,33 @@ class RedisDataManager:
         self,
         date_: date,
         category: str,
-    ) -> list[Articles]:
+    ) -> list[DisplayOnPageArticle]:
         try:
             article_ids = await self.client.sinter(
                 f"article:date:{date_}", f"article:category:{category}"
             )
-            article_list = []
+            category_pipline = self.client.pipeline()
             for article_id in article_ids:
                 try:
-                    article_data: dict[bytes, bytes] = await self.client.hgetall(
-                        article_id.decode("utf-8")
+                    await category_pipline.hmget(
+                        article_id.decode("utf-8"), "id", "title", "category", "views"
                     )
-                    article_decode = decode_keys_and_value(article_data)
-                    object_data = Article_schema(**article_decode)
-                    article_list.append(object_data)
                 except (ValueError, AttributeError, TypeError) as error:
                     logger.error(f"Ошибка, связанная с {error}")
-                    continue
+                    raise RedisError(f"Ошибка при работе с Redis.\nПодробнее: {error}")
 
-            return article_list
+            cached_code_articles: list[list[bytes]] = await category_pipline.execute()
+            decode_cached_articles = [
+                decode_info(article_info) for article_info in cached_code_articles
+            ]
+            try:
+                return [
+                    DisplayOnPageArticle(**article_info)
+                    for article_info in decode_cached_articles
+                ]
+            except ValidationError as valid_error:
+                logger.error(f"Объект не прошел валидацию.\nПодробнее {valid_error}")
+                raise ValidationError("Объект не прошел валидацию")
 
         except redis.ConnectionError as error:
             logger.error(f"Redis Server недоступен. {error}")
