@@ -70,7 +70,7 @@ async def display_all_articles(
 
 
 @article_router.get("/{category}")
-async def display_specific_category(  # noqa: F811
+async def display_specific_category( 
     request: Request,
     category: Category,
     redis_man: RedisDataManager = Depends(get_redis_man),
@@ -115,6 +115,7 @@ async def detail_desc_article(
     logger.info(f"Открыл страницу объекта с ID - {id_article}")
     try:
         cached_data: Article_schema = await redis_man.get_specific_article(id_article)
+        await postgre_man.update_info_object(id_article, "views", 1)
         return templates.TemplateResponse(
             "about_article.html", {"request": request, "article": cached_data}
         )
@@ -131,4 +132,3 @@ async def detail_desc_article(
             })
     except Exception as error:
         logger.error(f"Неожиданная ошибка: {error}")
-        

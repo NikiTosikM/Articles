@@ -12,7 +12,7 @@ class Articles(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[str | None] = mapped_column(String(20), nullable=True)
     title: Mapped[str] = mapped_column(String(150))
-    description: Mapped[str] = mapped_column(String(300), nullable=True)
+    description: Mapped[str] = mapped_column(nullable=True)
     views: Mapped[int] = mapped_column(Integer, default=0)
     published_at: Mapped[TIMESTAMP] = mapped_column(
         DateTime, default=lambda: datetime.now() - timedelta(days=1)
@@ -41,11 +41,3 @@ class Articles(Base):
        final_title = self.validate_len_value(title, 150) if title else None
        
        return final_title
-    
-    @logger.catch
-    @validates("description")
-    def validate_description(self, key, desc):
-       final_desc = self.validate_len_value(desc, 300) if desc else None
-       
-       return final_desc
-

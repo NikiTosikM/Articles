@@ -10,13 +10,14 @@ from redis.exceptions import (
     ResponseError,
     RedisError,
 )
-from sqlalchemy import select, and_, cast, Date, Result
+from sqlalchemy import select, and_, cast, Date, Result, update
 from sqlalchemy.exc import (
     DatabaseError,
     OperationalError,
     TimeoutError as TimeoutErrorPostgre,
     NoResultFound,
     SQLAlchemyError,
+    ProgrammingError
 )
 from loguru import logger
 from fastapi.exceptions import HTTPException
@@ -97,7 +98,7 @@ class PostgresDataManager:
                                 content=article.get("content"),
                             )
                             session.add(article_model_object)
-                            session.flush()
+                            await session.flush()
                             list_articles_objects.append(article_model_object)
                             logger.debug(
                                 f"Данные в бд успешно записаны. ID: {article_model_object.id}"
@@ -178,6 +179,19 @@ class PostgresDataManager:
                 "status": "error",
                 "description": "Произошла ошибка при работе с БД",
             }
+            
+    async def update_info_object(self, id_object: int, field: str, value: any) -> None:
+        try:
+            async with create_session() as session:
+                update_values = {field: Articles.__table__.c[field] + value}
+                query = update(Articles).where(Articles.id==id_object).values(**update_values)
+                await session.execute(query)
+        except (OperationalError, TimeoutErrorPostgre) as conn_error:
+            logger.error(f"Ошибка при обращении к БД.\nПодробнее: {conn_error}")
+            raise SQLAlchemyError("БД не отвечает")
+        except ProgrammingError as sql_error:
+            logger.error(f"Невозможно преобразовать запрос в sql.\nПодробнее: {sql_error}")
+            raise SQLAlchemyError("Ошибка синтаксиса")
 
 
 class RedisDataManager:
@@ -196,9 +210,8 @@ class RedisDataManager:
 
     async def get_specific_article(self, id_object: int) -> Articles:
         try:
-            cached_data_code: dict[bytes, bytes] = await self.client.hgetall(
-                f"article:id:{id_object}"
-            )
+            await self.client.hincrby(f"article:id:{id_object}", "views", 1)
+            cached_data_code: dict[bytes, bytes] = await self.client.hgetall(f"article:id:{id_object}")
             decode_cached_data: dict[str, str] = decode_keys_and_value(cached_data_code)
             object_article = Article_schema(**decode_cached_data)
             logger.debug(f"Получил данные по объекту - {id_object}")
