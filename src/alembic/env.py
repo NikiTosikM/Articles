@@ -7,7 +7,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from src.database import Base
-from src.config import postg_config as post_conf
+from core import settings
 from src.articles.models import *  # noqa: F403
 
 
@@ -17,7 +17,7 @@ from src.articles.models import *  # noqa: F403
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-        f"postgresql://{post_conf.username}:{post_conf.password}@{post_conf.host}/{post_conf.name}"
+        f"postgresql://{settings.db.username}:{settings.db.password}@{settings.db.host}/{settings.db.name}"
 )
 
 # Interpret the config file for Python logging.

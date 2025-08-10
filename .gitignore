@@ -17,19 +17,17 @@ env3.*
 .env
 docs_build
 site_build
-venv
+.venv
 docs.zip
 archive.zip
-
+.python-version
+src/logging
 # vim temporary files
 *~
 .*.sw?
 .cache
 
+uv.lock
+
 # macOS
 .DS_Store
-
-#logging.log
-logging/log_*.log
-
-alembic/versions
