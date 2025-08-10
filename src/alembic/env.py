@@ -8,7 +8,7 @@ from alembic import context
 
 from src.database import Base
 from core import settings
-from src.articles.models import *  # noqa: F403
+from src.article.models import *  # noqa: F403
 
 
 # this is the Alembic Config object, which provides

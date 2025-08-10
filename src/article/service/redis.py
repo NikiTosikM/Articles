@@ -1,6 +1,5 @@
 import datetime
 
-
 from loguru import logger
 from redis.asyncio import Redis, ConnectionPool
 from redis.exceptions import (
@@ -13,15 +12,12 @@ from redis.exceptions import (
 import redis
 from pydantic import ValidationError
 from fastapi import HTTPException, status
-
-from articles import (
-    Article,
-    DisplayOnPageArticle,
-    Articles_model,
-    decode_info,
-    decode_keys_and_value,
+from article.schemas import (
+    ArticleSchema,
+    DisplayOnPageArticleSchema
 )
-
+from article.models import Articles
+from article.utils import DecodeValues, DateFormatter
 
 class RedisDataManager:
     def __init__(self, host: str, port: int, max_connetion: int):
@@ -39,13 +35,13 @@ class RedisDataManager:
     async def update_info(self, id_object, field, value) -> None:
         await self.client.hincrby(f"article:id:{id_object}", field, value)
 
-    async def get_specific_article(self, id_object: int) -> Article:
+    async def get_specific_article(self, id_object: int) -> ArticleSchema:
         try:
             cached_data_code: dict[bytes, bytes] = await self.client.hgetall(
                 f"article:id:{id_object}"
             )
-            decode_cached_data: dict[str, str] = decode_keys_and_value(cached_data_code)
-            object_article = Article(**decode_cached_data)
+            decode_cached_data: dict[str, str] = DecodeValues.decode_keys_and_value(cached_data_code)
+            object_article = ArticleSchema(**decode_cached_data)
             logger.debug(f"Получил данные по объекту - {id_object}")
             return object_article
         except (ConnectionError, TimeoutError) as conn_error:
@@ -53,7 +49,7 @@ class RedisDataManager:
         except (ResponseError, DataError) as req_error:
             logger.error(f"Ошибка в запросе.\nПодробнее: {req_error}")
 
-    async def get_all_articles_by_date(self, date_: str) -> list[DisplayOnPageArticle]:
+    async def get_all_articles_by_date(self, date_: str) -> list[DisplayOnPageArticleSchema]:
         try:
             data_from_redis: set[bytes] = await self.client.smembers(
                 f"article:date:{date_}"
@@ -66,11 +62,11 @@ class RedisDataManager:
             cached_data: list[list[bytes]] = await pipline_all_articles.execute()
 
             articles_decode: list[dict[str, str]] = [
-                decode_info(article_data_bytes) for article_data_bytes in cached_data
+                DecodeValues.decoding_and_matching_with_fields(article_data_bytes) for article_data_bytes in cached_data
             ]
             try:
                 return [
-                    DisplayOnPageArticle(**article_data)
+                    DisplayOnPageArticleSchema(**article_data)
                     for article_data in articles_decode
                 ]
             except ValidationError as error:
@@ -86,7 +82,7 @@ class RedisDataManager:
         self,
         date_: datetime.date,
         category: str,
-    ) -> list[DisplayOnPageArticle]:
+    ) -> list[DisplayOnPageArticleSchema]:
         try:
             article_ids = await self.client.sinter(
                 f"article:date:{date_}", f"article:category:{category}"
@@ -103,11 +99,11 @@ class RedisDataManager:
 
             cached_code_articles: list[list[bytes]] = await category_pipline.execute()
             decode_cached_articles = [
-                decode_info(article_info) for article_info in cached_code_articles
+                DecodeValues.decoding_and_matching_with_fields(article_info) for article_info in cached_code_articles
             ]
             try:
                 return [
-                    DisplayOnPageArticle(**article_info)
+                    DisplayOnPageArticleSchema(**article_info)
                     for article_info in decode_cached_articles
                 ]
             except ValidationError as valid_error:
@@ -131,15 +127,13 @@ class RedisDataManager:
                 "type": "internal_error",
             }
 
-    async def insert_articles(self, data: list[Articles_model]) -> None:
+    async def insert_articles(self, data: list[Articles]) -> None:
         assert data is not None, "Данные не могут быть пустыми"
         logger.debug("Вставка данных в Redis")
         try:
             for article in data:
                 try:
-                    published_at: str = datetime.datetime.strftime(
-                        article.published_at, "%Y-%m-%d"
-                    )
+                    published_at: str = DateFormatter.converting_date_to_string(0)
                     article_desc = article.description if article.description else ""
                     await self.client.hset(
                         f"article:id:{article.id}",

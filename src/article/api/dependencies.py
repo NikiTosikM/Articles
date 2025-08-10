@@ -1,5 +1,4 @@
-from fastapi import Request
-from .service import (
+from article.service  import (
     RequestArticleApi,
     RedisDataManager,
     PostgresDataManager
@@ -18,6 +17,7 @@ def get_postgre_man():
 
 
 def get_redis_man():
+    ''' Returns an object for working with the redis '''
     return RedisDataManager(
         host=settings.redis.host,
         port=settings.redis.port,

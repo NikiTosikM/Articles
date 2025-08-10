@@ -11,7 +11,7 @@ from sqlalchemy.exc import (
 )
 from loguru import logger
 
-from articles import Articles, create_session
+from article import Articles, create_session
 
 
 class PostgresDataManager:

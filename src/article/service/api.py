@@ -10,7 +10,6 @@ class RequestArticleApi:
     async def request_article(
         self,
         client: aiohttp.ClientSession,
-        api_key: str,
         category: str,
         published_at: str,
     ) -> list:
@@ -22,7 +21,7 @@ class RequestArticleApi:
                 "&language=en"
                 f"&from={published_at}"
                 f"&to={published_at}"
-                f"&apiKey={api_key}"
+                f"&apiKey={self.api_key}"
             )
             async with client.get(url) as response:
                 data: dict = await response.json()

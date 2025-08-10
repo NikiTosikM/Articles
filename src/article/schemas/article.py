@@ -1,6 +1,5 @@
+from pydantic import Field, BaseModel
 from enum import Enum
-
-from pydantic import BaseModel, Field
 
 
 class Category(str, Enum):
@@ -16,7 +15,7 @@ class Category(str, Enum):
         return self.value
 
 
-class Article(BaseModel):
+class ArticleSchema(BaseModel):
     id: int
     category: Category
     title: str = Field(max_length=150)
@@ -26,7 +25,7 @@ class Article(BaseModel):
     content: str
     
 
-class DisplayOnPageArticle(BaseModel):
+class DisplayOnPageArticleSchema(BaseModel):
     id: int
     title: str
     category: Category
