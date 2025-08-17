@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from article.service  import (
     RequestArticleApi,
     RedisDataManager,
@@ -11,11 +13,13 @@ def get_request_api_man():
     return RequestArticleApi(api_key=settings.api_key)
 
 
+@lru_cache
 def get_postgre_man():
     ''' Returns an object for working with the db '''
     return PostgresDataManager()
 
 
+@lru_cache
 def get_redis_man():
     ''' Returns an object for working with the redis '''
     return RedisDataManager(
