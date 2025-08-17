@@ -5,12 +5,14 @@ from loguru import logger
 import uvicorn
 
 from core import settings
-
+from article.api import main_router
 
 
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+app.include_router(main_router)
 
 @app.get("/")
 async def main():
@@ -20,7 +22,7 @@ async def main():
 if __name__ == "__main__":
     logger.info("Сервер запущен")
     uvicorn.run(
-        "src.main:app", 
+        "main:app", 
         port=settings.uvicorn.port, 
         host=settings.uvicorn.host, 
         reload=True

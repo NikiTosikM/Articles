@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 
-from src.database import Base
+
 from sqlalchemy.orm import Mapped, mapped_column, validates
 from sqlalchemy import String, Text, Integer, DateTime, TIMESTAMP
 from loguru import logger
+
+from database import Base
 
 
 class Articles(Base):

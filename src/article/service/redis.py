@@ -133,7 +133,7 @@ class RedisDataManager:
         try:
             for article in data:
                 try:
-                    published_at: str = DateFormatter.converting_date_to_string(0)
+                    published_at: str = DateFormatter.converting_date_to_string(1)
                     article_desc = article.description if article.description else ""
                     await self.client.hset(
                         f"article:id:{article.id}",

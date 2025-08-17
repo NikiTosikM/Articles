@@ -3,14 +3,13 @@ from sqlalchemy.orm import  DeclarativeBase
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from contextlib import asynccontextmanager
 
-from .config import postg_config as post_conf
+from core import settings
 
 
-url_connect_db = ("postgresql+asyncpg://"
-                f"{post_conf.username}:{post_conf.password}"
-                f"@{post_conf.host}/{post_conf.name}"
-            )
-engine = create_async_engine(url_connect_db)
+url_connect_db = settings.db.create_db_connection_url
+engine = create_async_engine(
+    url_connect_db
+)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession ,expire_on_commit=False)
 

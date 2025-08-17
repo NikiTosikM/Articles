@@ -12,14 +12,21 @@ class DBSettings(BaseModel):
     port: int = 5432
     username: str = "postgres"
     name: str
-    password: SecretStr
+    password: str
+    
+    @property
+    def create_db_connection_url(self):
+        return ("postgresql+asyncpg://"
+                f"{self.username}:{self.password}"
+                f"@{self.host}/{self.name}"
+            )
 
 
 class RedisSettings(BaseModel):
     host: str
     port: int
     db_number: int = 0
-    max_connection = 50
+    max_connection: int = 50
     
     
 class Settings(BaseSettings):
@@ -36,5 +43,3 @@ class Settings(BaseSettings):
     
 
 settings = Settings()
-
-print(settings)

@@ -14,7 +14,7 @@ from article.service import (
     RequestArticleApi
 )
 from article.schemas import Category, ArticleSchema
-from api.dependencies import (
+from article.api.dependencies import (
     get_postgre_man, 
     get_redis_man, 
     get_request_api_man
